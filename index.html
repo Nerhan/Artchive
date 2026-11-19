@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#030a06">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Artchive: a personal archive of music, films, series, anime, manga, books and games.">
+  <title>Artchive</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/archive.css">
+</head>
+<body>
+
+  <noscript><p class="noscript">[!] JAVASCRIPT_REQUIRED: enable JavaScript to open the archive.</p></noscript>
+
+  <!-- ================= PORTADA: sistema planetario ================= -->
+  <!-- Arrastrar: girar la cámara · Espacio o doble clic: alinear / soltar los planetas -->
+  <section id="viewHome" class="view view-home" aria-label="Home">
+
+    <div id="orbitStage" class="orbit-stage">
+      <canvas id="orbitBack" class="orbit-canvas orbit-back" aria-hidden="true"></canvas>
+
+      <!-- Núcleo: globo ASCII que dibuja js/orbit.js -->
+      <div id="core" class="core" aria-hidden="true">
+        <pre id="coreArt" class="core-art"></pre>
+      </div>
+
+      <canvas id="orbitFront" class="orbit-canvas orbit-front" aria-hidden="true"></canvas>
+
+      <!-- Los planetas se crean desde js/categories.js -->
+      <nav id="satellites" aria-label="Sections"></nav>
+    </div>
+
+    <header class="hud hud-top">
+      <span class="brand-name">ARTCHIVE</span>
+    </header>
+  </section>
+
+  <!-- ================= ARCHIVO: una sección ================= -->
+  <!-- Para cambiar de sección se vuelve a la portada (botón HOME o Esc) -->
+  <section id="viewArchive" class="view view-archive" aria-label="Archive" hidden>
+    <canvas id="archiveStars" class="archive-stars" aria-hidden="true"></canvas>
+
+    <div class="arch-wrap">
+
+      <header class="arch-header">
+        <a href="#/" class="btn btn-ghost" id="backBtn" title="Back to home (Esc)"><span aria-hidden="true">&larr;</span> HOME</a>
+        <div class="arch-heading">
+          <h1 id="archTitle" class="brand-name arch-title">ARCHIVE</h1>
+          <p class="arch-sub" id="archSub">
+            <span id="resultCount" aria-live="polite"></span>
+            <button type="button" id="clearFilters" class="link-btn" hidden>RESET</button>
+          </p>
+        </div>
+        <button type="button" id="addBtn" class="btn btn-solid" title="New entry (N)"><span aria-hidden="true">+</span> NEW ENTRY</button>
+      </header>
+
+      <!-- Registros o estadísticas de la sección -->
+      <div class="view-tabs" role="tablist" aria-label="View">
+        <button type="button" class="view-tab" role="tab" id="tabRecords" data-pane="records" aria-selected="true" aria-controls="recordsPane">RECORDS</button>
+        <button type="button" class="view-tab" role="tab" id="tabStats" data-pane="stats" aria-selected="false" aria-controls="statsPane">STATS</button>
+      </div>
+
+      <div id="recordsPane" role="tabpanel" aria-labelledby="tabRecords">
+      <div class="controls">
+        <label class="field field-search">
+          <span class="field-label">&gt; SEARCH <kbd>/</kbd></span>
+          <input type="search" id="searchInput" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="field">
+          <span class="field-label" id="genreLabel">&gt; GENRE</span>
+          <select id="genreFilter" aria-labelledby="genreLabel"></select>
+        </div>
+        <div class="field">
+          <span class="field-label" id="statusLabel">&gt; STATUS</span>
+          <select id="statusFilter" aria-labelledby="statusLabel"></select>
+        </div>
+        <div class="field">
+          <span class="field-label" id="sortLabel">&gt; SORT_BY</span>
+          <select id="sortFilter" aria-labelledby="sortLabel">
+            <option value="newest">YEAR: NEWEST FIRST</option>
+            <option value="oldest">YEAR: OLDEST FIRST</option>
+            <option value="title">TITLE: A-Z</option>
+            <option value="creator" id="sortCreatorOption">CREATOR: A-Z</option>
+            <option value="rating">RATING: HIGHEST FIRST</option>
+            <option value="added">RECENTLY ADDED</option>
+          </select>
+        </div>
+      </div>
+
+      <main id="grid" class="grid"></main>
+      </div>
+
+      <!-- Estadísticas de la sección (las dibuja js/stats.js) -->
+      <div id="statsPane" class="stats" role="tabpanel" aria-labelledby="tabStats" hidden></div>
+    </div>
+  </section>
+
+  <!-- ================= Diálogo: nueva entrada / editar ================= -->
+  <dialog id="formDialog" class="dialog" aria-labelledby="formTitle">
+    <form id="entryForm" class="dialog-body" autocomplete="off">
+      <header class="dialog-header">
+        <div>
+          <p id="formKicker" class="kicker"></p>
+          <h2 id="formTitle">[+] NEW_ENTRY</h2>
+        </div>
+        <button type="button" class="dialog-close" data-close aria-label="Close">&times;</button>
+      </header>
+
+      <label class="field">
+        <span class="field-label">&gt; TITLE *</span>
+        <input type="text" id="fTitle" required maxlength="200">
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label" id="fCreatorLabel">&gt; CREATOR *</span>
+          <input type="text" id="fCreator" required maxlength="200">
+        </label>
+        <label class="field">
+          <span class="field-label" id="fExtraLabel">&gt; EXTRA *</span>
+          <input type="text" id="fExtra" required maxlength="200">
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="fGenres">&gt; GENRES *</label>
+        <input type="text" id="fGenres" required>
+        <div id="genreChips" class="chips" aria-label="Genres already used in this section"></div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="fStatusLabel">&gt; STATUS</span>
+        <div id="fStatus" class="seg" role="radiogroup" aria-labelledby="fStatusLabel"></div>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">&gt; RELEASE_YEAR *</span>
+          <input type="number" id="fYear" min="1000" max="2099" required inputmode="numeric">
+        </label>
+        <div class="field">
+          <span class="field-label" id="fRatingLabel">&gt; RATING</span>
+          <div id="fRating" class="rating-input" role="group" aria-labelledby="fRatingLabel">
+            <button type="button" data-value="1" aria-label="1 of 5"></button>
+            <button type="button" data-value="2" aria-label="2 of 5"></button>
+            <button type="button" data-value="3" aria-label="3 of 5"></button>
+            <button type="button" data-value="4" aria-label="4 of 5"></button>
+            <button type="button" data-value="5" aria-label="5 of 5"></button>
+            <span id="fRatingText" class="rating-text">UNRATED</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="fCover">&gt; COVER_IMAGE_URL</label>
+        <div class="cover-field">
+          <img id="coverPreview" class="cover-preview" alt="Cover preview">
+          <div class="cover-field-input">
+            <input type="url" id="fCover" placeholder="https://example.com/cover.jpg">
+          </div>
+        </div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">&gt; NOTES</span>
+        <textarea id="fNotes" rows="3" maxlength="2000" placeholder="Thoughts, where you left off, why it matters..."></textarea>
+      </label>
+
+      <p id="formWarning" class="form-warning" role="alert" hidden></p>
+
+      <footer class="dialog-actions">
+        <button type="button" class="btn" data-close>CANCEL</button>
+        <button type="submit" class="btn btn-solid" id="saveBtn">SAVE_ENTRY</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ================= Diálogo: ficha de una entrada ================= -->
+  <dialog id="detailDialog" class="dialog dialog-wide" aria-labelledby="detailTitle"></dialog>
+
+  <div id="toasts" class="toasts"></div>
+
+  <!-- Efecto de monitor CRT -->
+  <div class="crt crt-scanlines" aria-hidden="true"></div>
+  <div class="crt crt-sweep" aria-hidden="true"></div>
+  <div class="crt crt-vignette" aria-hidden="true"></div>
+
+  <script src="js/favicon.js"></script>
+  <script src="js/categories.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/cover-font.js"></script>
+  <script src="js/covers.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/boot.js"></script>
+  <script src="js/cursor.js"></script>
+  <script src="js/ascii-art.js"></script>
+  <script src="js/orbit.js"></script>
+  <script src="js/stars.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/archive.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

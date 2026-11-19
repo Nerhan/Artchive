@@ -1,0 +1,181 @@
+/* ===== Artchive // portada: núcleo, nodos en órbita y título ===== */
+
+.view-home {
+  --core: clamp(104px, 24vmin, 230px);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background: radial-gradient(ellipse at 50% 50%, #06200f 0%, var(--bg) 52%, var(--bg-deep) 100%);
+}
+
+/* Escenario: crea su propio orden de capas.
+   1 lienzo trasero · 10-499 nodos lejanos · 500 núcleo · 501 lienzo delantero · 510+ nodos cercanos */
+.orbit-stage {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  touch-action: none;
+  cursor: grab;
+}
+.orbit-stage.dragging { cursor: grabbing; }
+
+.orbit-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.orbit-back { z-index: 1; }
+.orbit-front { z-index: 501; }
+
+/* ---------- Núcleo: globo ASCII ---------- */
+
+.core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 500;
+  width: var(--core);
+  height: var(--core);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #0a2e18 0%, #031208 58%, #010503 100%);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 0 46px rgba(0, 255, 102, 0.22),
+    inset 0 0 34px rgba(0, 255, 102, 0.1);
+  transform: translate(-50%, -50%);
+  animation: core-pulse 5s ease-in-out infinite;
+}
+
+/* Anillo punteado que gira despacio */
+.core::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border: 2px dashed var(--fg);
+  border-radius: 50%;
+  opacity: 0.85;
+  animation: spin 90s linear infinite;
+}
+
+.core::after {
+  content: '';
+  position: absolute;
+  inset: -22px;
+  border: 1px solid var(--line-faint);
+  border-radius: 50%;
+}
+
+.core-art {
+  font-family: var(--font-art);
+  font-size: calc(var(--core) / 24);
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: pre;
+  color: var(--fg);
+}
+/* El arte va en un solo verde: la luz solo cambia un poco su intensidad */
+.core-art .a3 { color: var(--fg); text-shadow: 0 0 5px rgba(0, 255, 102, 0.55); }
+.core-art .a2 { color: rgba(0, 255, 102, 0.85); text-shadow: 0 0 4px rgba(0, 255, 102, 0.4); }
+.core-art .a1 { color: rgba(0, 255, 102, 0.7); text-shadow: 0 0 3px rgba(0, 255, 102, 0.3); }
+.core-art .g  { color: rgba(0, 255, 102, 0.4); }
+.core-art .s3 { color: rgba(0, 255, 102, 0.36); }
+.core-art .s2 { color: rgba(0, 255, 102, 0.2); }
+.core-art .s1 { color: rgba(0, 255, 102, 0.1); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes core-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--line), 0 0 46px rgba(0, 255, 102, 0.22), inset 0 0 34px rgba(0, 255, 102, 0.1); }
+  50%      { box-shadow: 0 0 0 1px var(--line), 0 0 72px rgba(0, 255, 102, 0.36), inset 0 0 44px rgba(0, 255, 102, 0.16); }
+}
+
+/* ---------- Nodos ----------
+   La posición, el tamaño y --a (brillo según la profundidad) los pone js/orbit.js en cada cuadro. */
+
+.sat {
+  --a: 1;
+  /* misma forma angular que los botones (css/base.css); el borde se apaga con la profundidad */
+  --cut: 9px;
+  --tick: 7px;
+  --bc: rgb(0 255 102 / var(--a));
+  --fill: #020a05;
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  height: 44px;
+  /* el espacio entre letras también queda tras la última: se descuenta a la derecha */
+  padding: 0 calc(20px - 0.16em) 0 20px;
+  box-shadow: inset 0 0 calc(var(--a) * 16px) rgb(0 255 102 / calc(var(--a) * 0.22));
+  color: rgb(0 255 102 / var(--a));
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgb(0 255 102 / calc(var(--a) * 0.5));
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  /* El marco lo dibuja el SVG de dentro (.sat-frame, js/orbit.js) y no los degradados de
+     css/base.css: al escalar el nodo, los degradados salían finos y desalineados en las diagonales.
+     El borde transparente se queda para que el tamaño no cambie. Sin will-change: así el
+     navegador vuelve a dibujar el nodo a cada escala en vez de estirar una imagen borrosa. */
+  border-color: transparent;
+  background: none;
+  isolation: isolate;
+}
+
+.sat-frame {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  overflow: visible;
+  pointer-events: none;
+}
+.sat-edge { fill: var(--fill); stroke: var(--bc); stroke-width: 1; }
+.sat-tick { fill: var(--bc); }
+
+.sat:hover, .sat:focus-visible {
+  --fill: var(--fg);
+  --bc: var(--fg);
+  box-shadow: inset 0 0 16px rgba(234, 255, 241, 0.55);
+  color: var(--bg);
+  text-shadow: none;
+  outline: none;
+}
+.sat:focus-visible { --bc: var(--white); }
+
+/* ---------- Título ---------- */
+
+.hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hud-top {
+  top: 0;
+  display: flex;
+  justify-content: center;
+  padding: clamp(18px, 4vh, 38px) 16px 0;
+}
+
+/* ---------- Pantallas pequeñas ---------- */
+
+@media (max-width: 720px) {
+  .sat { min-width: 0; height: 38px; padding: 0 14px; font-size: 13px; letter-spacing: 0.12em; }
+}
+
+@media (max-width: 380px) {
+  .view-home { --core: 92px; }
+}
+
+@media (max-width: 480px) {
+  .sat { height: 34px; padding: 0 11px; font-size: 12px; letter-spacing: 0.1em; --cut: 7px; --tick: 5px; }
+}

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Icono de la pestaña (versión fija). La animada la dibuja js/favicon.js con la misma forma. -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#00ff66" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#00ff66" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- placa con las esquinas cortadas y el triangulito arriba a la derecha -->
+  <polygon points="15,2 62,2 62,49 49,62 2,62 2,15" fill="#020a05" stroke="#00ff66" stroke-width="4" stroke-linejoin="bevel"/>
+  <polygon points="50,2 62,2 62,14" fill="#00ff66"/>
+  <circle cx="32" cy="32" r="19" fill="url(#glow)"/>
+  <!-- órbita (mitad de atrás), núcleo, órbita (mitad de delante) y nodo -->
+  <ellipse cx="32" cy="32" rx="21" ry="8" transform="rotate(-20 32 32)" fill="none" stroke="#00ff66" stroke-width="2.6" opacity=".45"/>
+  <circle cx="32" cy="32" r="10.5" fill="#00ff66"/>
+  <g fill="none" stroke="#020a05" stroke-width="1.6" opacity=".55">
+    <path d="M23 28.5h18M22 35.5h20"/>
+    <ellipse cx="32" cy="32" rx="4.2" ry="10.5"/>
+  </g>
+  <path d="M11 32A21 8 0 0 0 53 32" transform="rotate(-20 32 32)" fill="none" stroke="#00ff66" stroke-width="2.6"/>
+  <polygon points="46.6,22.6 57.3,22.6 57.3,33.3 54.6,36.0 44.0,36.0 44.0,25.3" fill="#020a05"/>
+  <polygon points="47.7,24.4 55.5,24.4 55.5,32.2 53.6,34.2 45.8,34.2 45.8,26.4" fill="#eafff1"/>
+</svg>
