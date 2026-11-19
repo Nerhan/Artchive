@@ -1,10 +1,10 @@
-/* ===== Artchive // arranque: navegación, guardar (Ctrl+S) y atajos de teclado =====
+/* ===== Artchive // arranque: navegación, copia de seguridad (Ctrl+S), sesión y atajos =====
    La página es una sola. La dirección decide qué se ve:
      index.html#/         portada
      index.html#/music    sección "music" (cualquier clave de js/categories.js)
 */
 (() => {
-  const { CATEGORIES, library, orbit, archive, ui } = Artchive;
+  const { CATEGORIES, library, orbit, archive, ui, db } = Artchive;
   const { $, toast } = ui;
 
   const viewHome = $('viewHome');
@@ -47,37 +47,49 @@
   window.addEventListener('hashchange', route);
 
   /* ---------- Guardar ----------
-     La página es estática: los cambios viven en memoria hasta descargar un data.js nuevo
-     con Ctrl+S y ponerlo en lugar de js/data.js. */
+     Cada cambio se guarda solo en la base de datos (js/library.js). Ctrl+S descarga además
+     una copia de seguridad con todo, en el formato de js/data.js de la versión sin base de
+     datos: el plan gratis de Supabase no hace copias, así que conviene bajar una de vez en cuando. */
 
   function exportData() {
-    ui.download('data.js', library.exportText(), 'text/javascript');
-    library.markSaved();
+    if (!library.total()) { toast('NOTHING TO BACK UP: the archive is empty.', { kind: 'warn' }); return; }
+    const day = new Date().toISOString().slice(0, 10);
+    ui.download(`artchive-backup-${day}.js`, library.exportText(), 'text/javascript');
     ui.sfx('save');
-    toast('SAVED: data.js downloaded. Replace js/data.js with it to keep your changes.', { timeout: 9000 });
+    toast(`BACKUP: artchive-backup-${day}.js downloaded.`, { timeout: 6000 });
   }
 
-  let hinted = false;
   library.onChange(() => {
     orbit.updateCounts();
     if (!viewArchive.hidden) archive.refresh();
-    // La primera vez que algo cambia, se recuerda cómo guardarlo
-    if (library.dirty && !hinted) {
-      hinted = true;
-      setTimeout(() => toast('TIP: press Ctrl+S to download data.js with your changes.', { timeout: 8000 }), 500);
-    }
   });
+  library.onError(err => toast(err.message, { kind: 'error', timeout: 8000 }));
 
-  // Aviso del navegador al cerrar o recargar con cambios sin exportar
+  // Aviso del navegador al cerrar o recargar mientras algo se está guardando
   window.addEventListener('beforeunload', e => {
-    if (!library.dirty) return;
+    if (!library.pending) return;
     e.preventDefault();
     e.returnValue = '';
   });
 
+  /* ---------- Cerrar sesión ----------
+     Se borra la sesión de este navegador y se recarga: vuelve a pedir la contraseña. */
+
+  async function logout() {
+    if (library.pending) { toast('WAIT: still saving changes.', { kind: 'warn' }); return; }
+    ui.sfx('back');
+    await db.signOut();
+    library.clear();
+    location.hash = '#/';
+    location.reload();
+  }
+  $('logoutBtn').addEventListener('click', logout);
+
   /* ---------- Atajos de teclado ---------- */
 
   document.addEventListener('keydown', e => {
+    // Mientras la pantalla de arranque está (o pide la contraseña), los atajos no actúan
+    if (document.body.classList.contains('booting')) return;
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
       e.preventDefault();
       exportData();

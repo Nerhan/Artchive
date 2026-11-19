@@ -1,9 +1,14 @@
-/* ===== Artchive // biblioteca en memoria =====
-   Guarda todas las entradas de todas las secciones mientras la página está abierta.
-   Parte de js/data.js y exporta un data.js nuevo cuando se lo piden.
+/* ===== Artchive // biblioteca =====
+   Guarda en memoria todas las entradas de todas las secciones y las mantiene al día con
+   Supabase (js/db.js): load() las trae al iniciar sesión, y cada alta, edición o borrado se
+   guarda en la base de datos al momento.
 
    Entrada = { id, title, creator, extra, genres[], year, rating (0-5), status, cover, notes, added }
    status: 'completed' | 'progress' | 'planned' | 'dropped' (si falta, cuenta como completed)
+
+   add() y update() esperan a que la base de datos confirme (devuelven una promesa).
+   remove() quita la entrada al instante y, si la base de datos falla, la vuelve a poner y
+   avisa con onError(). exportText() arma una copia de seguridad en formato data.js.
 */
 window.Artchive = window.Artchive || {};
 
@@ -11,8 +16,8 @@ Artchive.library = (() => {
   const KEYS = Object.keys(Artchive.CATEGORIES);
   const data = Object.fromEntries(KEYS.map(k => [k, []]));
   const listeners = new Set();
-  let nextId = 1;
-  let dirty = 0; // cambios sin exportar
+  const errorListeners = new Set();
+  let pending = 0;      // guardados en curso (al cerrar la pestaña con alguno, el navegador avisa)
 
   const text = v => String(v ?? '').trim();
 
@@ -28,7 +33,7 @@ Artchive.library = (() => {
     });
   }
 
-  // Convierte cualquier objeto (data.js o formulario) en campos limpios.
+  // Convierte cualquier objeto (fila de la base de datos o formulario) en campos limpios.
   // También acepta el formato antiguo de música (artist/album) y "genre" como texto.
   function clean(raw) {
     if (!raw || typeof raw !== 'object') return null;
@@ -52,17 +57,39 @@ Artchive.library = (() => {
 
   const keyOf = i => `${i.title}|${i.creator}|${i.year}`.toLowerCase();
   const emit = () => listeners.forEach(fn => fn());
-  const changed = () => { dirty++; emit(); };
+  const fail = err => errorListeners.forEach(fn => fn(err));
 
-  /* ---------- Carga inicial desde data.js ---------- */
+  // Fila de la base de datos <-> entrada en memoria
+  function fromRow(row) {
+    const fields = clean(row);
+    if (!fields) return null;
+    return { ...fields, id: row.id, added: Date.parse(row.added) || 0 };
+  }
+  // (sin id ni fecha: los pone la base de datos)
+  const toRow = fields => {
+    const { id, added, ...rest } = fields;
+    return rest;
+  };
 
-  const seed = Artchive.DATA || {};
-  KEYS.forEach(k => {
-    (Array.isArray(seed[k]) ? seed[k] : []).forEach(raw => {
-      const fields = clean(raw);
-      if (fields) data[k].push({ id: nextId++, ...fields });
+  // Cuenta los guardados en curso
+  async function track(promise) {
+    pending++;
+    try { return await promise; }
+    finally { pending--; }
+  }
+
+  /* ---------- Carga desde la base de datos ---------- */
+
+  async function load() {
+    const rows = await Artchive.db.fetchAll();
+    KEYS.forEach(k => { data[k] = []; });
+    rows.forEach(row => {
+      const item = data[row.category] && fromRow(row);
+      if (item) data[row.category].push(item);
     });
-  });
+    emit();
+    return total();
+  }
 
   /* ---------- Lectura ---------- */
 
@@ -90,56 +117,75 @@ Artchive.library = (() => {
 
   /* ---------- Escritura ---------- */
 
-  function add(cat, raw) {
+  async function add(cat, raw) {
     const fields = clean(raw);
     if (!fields || !data[cat]) return null;
-    const item = { id: nextId++, ...fields, added: Date.now() };
+    const row = await track(Artchive.db.insert({ category: cat, ...toRow(fields) }));
+    const item = fromRow(row);
     data[cat].push(item);
-    changed();
+    emit();
     return item;
   }
 
-  function update(cat, id, raw) {
+  async function update(cat, id, raw) {
     const item = get(cat, id);
     const fields = clean(raw);
     if (!item || !fields) return null;
-    Object.assign(item, fields, { added: item.added });
-    changed();
+    const row = await track(Artchive.db.update(id, toRow(fields)));
+    Object.assign(item, fromRow(row));
+    emit();
     return item;
   }
 
+  // Se quita al instante; si la base de datos no lo borra, vuelve a su sitio y se llama a onFail.
   // Devuelve lo necesario para deshacer: { item, index }
-  function remove(cat, id) {
+  function remove(cat, id, onFail) {
     const index = list(cat).findIndex(i => i.id === id);
     if (index < 0) return null;
     const [item] = data[cat].splice(index, 1);
-    changed();
+    emit();
+    track(Artchive.db.remove(id)).catch(err => {
+      if (!get(cat, item.id)) data[cat].splice(Math.min(index, data[cat].length), 0, item);
+      emit();
+      if (onFail) onFail(err);
+      fail(err);
+    });
     return { item, index };
   }
 
-  function restore(cat, item, index) {
+  // Deshacer un borrado: se guarda de nuevo (la base de datos le da un id nuevo)
+  async function restore(cat, item, index) {
     if (!data[cat] || get(cat, item.id)) return;
-    data[cat].splice(Math.min(index, data[cat].length), 0, item);
-    changed();
+    const row = await track(Artchive.db.insert({ category: cat, ...toRow(item), added: new Date(item.added || Date.now()).toISOString() }));
+    data[cat].splice(Math.min(index, data[cat].length), 0, fromRow(row));
+    emit();
   }
 
-  /* ---------- Exportar (Ctrl+S descarga un data.js nuevo) ---------- */
+  // Al cerrar sesión no queda nada en memoria
+  function clear() {
+    KEYS.forEach(k => { data[k] = []; });
+    emit();
+  }
+
+  /* ---------- Copia de seguridad (Ctrl+S) ----------
+     Mismo formato que js/data.js de la versión sin base de datos (rama "static"):
+     ese archivo sirve tal cual allí. */
 
   function exportText() {
     const out = {};
     KEYS.forEach(k => { out[k] = data[k].map(({ id, ...fields }) => fields); });
-    return '/* Artchive // archivo de datos, exportado el ' + new Date().toISOString().slice(0, 10) + '\n' +
-      '   Reemplaza js/data.js con este archivo para que los cambios queden guardados. */\n' +
+    return '/* Artchive // copia de seguridad del ' + new Date().toISOString().slice(0, 10) + '\n' +
+      '   Sirve como js/data.js en la versión sin base de datos (rama "static"). */\n' +
       'window.Artchive = window.Artchive || {};\n' +
       'Artchive.DATA = ' + JSON.stringify(out, null, 2) + ';\n';
   }
 
   return {
     list, get, count, total, genres, isDuplicate, parseGenres,
-    add, update, remove, restore,
+    load, add, update, remove, restore, clear,
     exportText,
-    get dirty() { return dirty; },
-    markSaved() { dirty = 0; emit(); },
-    onChange(fn) { listeners.add(fn); }
+    get pending() { return pending; },
+    onChange(fn) { listeners.add(fn); },
+    onError(fn) { errorListeners.add(fn); }
   };
 })();

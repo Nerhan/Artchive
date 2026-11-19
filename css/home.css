@@ -166,6 +166,22 @@
   padding: clamp(18px, 4vh, 38px) 16px 0;
 }
 
+/* ---------- Cerrar sesión ---------- */
+
+.logout-btn {
+  position: absolute;
+  right: clamp(14px, 3vw, 28px);
+  bottom: calc(clamp(14px, 3vh, 26px) + env(safe-area-inset-bottom, 0px));
+  z-index: 3;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  --cut: 7px;
+  color: var(--fg-mute);
+}
+.logout-btn:hover, .logout-btn:focus-visible { color: var(--fg); --bc: var(--fg); }
+
 /* ---------- Pantallas pequeñas ---------- */
 
 @media (max-width: 720px) {

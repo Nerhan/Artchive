@@ -245,12 +245,18 @@ Artchive.archive = (() => {
 
   function removeItem(item) {
     const section = cat;
-    const removed = library.remove(section, item.id);
+    let closeToast = null;
+    // Si la base de datos no lo borra, la entrada vuelve y el aviso con UNDO se quita
+    const removed = library.remove(section, item.id, () => closeToast && closeToast());
     if (!removed) return;
     ui.sfx('remove');
-    toast(`RECORD_DELETED: ${item.title}`, {
+    closeToast = toast(`RECORD_DELETED: ${item.title}`, {
       timeout: 7000,
-      action: { label: 'UNDO', run: () => library.restore(section, removed.item, removed.index) }
+      action: {
+        label: 'UNDO',
+        run: () => library.restore(section, removed.item, removed.index)
+          .catch(err => toast(err.message, { kind: 'error', timeout: 7000 }))
+      }
     });
   }
 
@@ -447,6 +453,7 @@ Artchive.archive = (() => {
 
   form.addEventListener('submit', e => {
     e.preventDefault();
+    if (saving) return;
     const genres = library.parseGenres(f.genres.value);
     if (!genres.length) {
       f.genres.setCustomValidity('Enter at least one genre.');
@@ -474,16 +481,31 @@ Artchive.archive = (() => {
       return;
     }
 
+    // Se guarda en la base de datos; mientras tanto el botón queda bloqueado.
+    // Si falla, el formulario sigue abierto con el aviso y no se pierde lo escrito.
     const title = fields.title.trim();
-    if (editingId !== null) {
-      library.update(cat, editingId, fields);
-      toast(`RECORD_UPDATED: ${title}`);
-    } else {
-      library.add(cat, fields);
-      toast(`RECORD_ADDED: ${title}`);
-    }
-    formDialog.close();
+    const editing = editingId;
+    setSaving(true);
+    (editing !== null ? library.update(cat, editing, fields) : library.add(cat, fields))
+      .then(() => {
+        toast(editing !== null ? `RECORD_UPDATED: ${title}` : `RECORD_ADDED: ${title}`);
+        formDialog.close();
+      })
+      .catch(err => {
+        warning.textContent = `[!] ${err.message}`;
+        warning.hidden = false;
+        ui.sfx('error');
+      })
+      .finally(() => setSaving(false));
   });
+
+  const saveBtn = $('saveBtn');
+  let saving = false;
+  function setSaving(on) {
+    saving = on;
+    saveBtn.disabled = on;
+    saveBtn.textContent = on ? 'SAVING...' : 'SAVE_ENTRY';
+  }
 
   /* ---------- API de la vista ---------- */
 
