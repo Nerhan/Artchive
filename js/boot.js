@@ -34,7 +34,7 @@ Artchive.boot = (() => {
   const el = document.createElement('div');
   el.className = 'boot';
   el.setAttribute('role', 'status');
-  el.setAttribute('aria-label', 'Loading Artchive');
+  el.setAttribute('aria-label', 'Loading Cyber Artchive');
   el.innerHTML = '<div class="boot-screen"><pre class="boot-log" aria-hidden="true"></pre></div>' +
                  (full ? '<p class="boot-skip" aria-hidden="true">PRESS ANY KEY TO SPEED UP</p>' : '');
   document.body.append(el);
@@ -193,7 +193,7 @@ Artchive.boot = (() => {
   async function run() {
     if (full) {
       await wait(200);
-      await line('ARTCHIVE BIOS v3.12  //  PHOSPHOR SYSTEMS', { cls: 'boot-head', chunk: 4 });
+      await line('CYBER ARTCHIVE BIOS v3.12  //  PHOSPHOR SYSTEMS', { cls: 'boot-head', chunk: 4 });
       await line('');
       await line('CPU ............. P-8 @ 4.77 MHZ', { status: 'OK' });
       await line('MEMORY .......... 640K', { status: 'OK' });
@@ -204,7 +204,7 @@ Artchive.boot = (() => {
       for (const name of names) await line(`  /${name.padEnd(13, '.')}`, { status: 'OK', chunk: 8 });
       await line('');
     } else {
-      await line('ARTCHIVE  //  SECURE TERMINAL', { cls: 'boot-head' });
+      await line('CYBER ARTCHIVE  //  SECURE TERMINAL', { cls: 'boot-head' });
       await line('');
     }
 

@@ -192,6 +192,12 @@
   .view-home { --core: 92px; }
 }
 
+/* "CYBER ARTCHIVE" es largo: en el celular el título se achica con el ancho de la pantalla
+   para que entre entero en una línea (los títulos de las secciones no cambian) */
+@media (max-width: 480px) {
+  .view-home .brand-name { font-size: min(22px, 5.2vw); }
+}
+
 @media (max-width: 480px) {
   .sat { height: 34px; padding: 0 11px; font-size: 12px; letter-spacing: 0.1em; --cut: 7px; --tick: 5px; }
 }

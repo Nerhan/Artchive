@@ -26,11 +26,11 @@
     if (isArchive) {
       orbit.stop();
       archive.open(key);
-      document.title = `Artchive // ${CATEGORIES[key].name}`;
+      document.title = `Cyber Artchive // ${CATEGORIES[key].name}`;
     } else {
       archive.close();
       orbit.start();
-      document.title = 'Artchive';
+      document.title = 'Cyber Artchive';
     }
 
     // Animación de entrada solo al cambiar de vista (no al pasar de una sección a otra)
